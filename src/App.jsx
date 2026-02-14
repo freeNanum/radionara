@@ -150,33 +150,69 @@ export default function App() {
       });
   }, [favorites, search, stations]);
 
+  function buildPlaybackCandidates(streamUrl) {
+    if (!streamUrl.startsWith("http://")) {
+      return [streamUrl];
+    }
+
+    const secureUrl = `https://${streamUrl.slice("http://".length)}`;
+    if (window.location.protocol === "https:") {
+      return [secureUrl];
+    }
+
+    return [secureUrl, streamUrl];
+  }
+
   async function attachStreamAndPlay(streamUrl) {
     const audio = audioRef.current;
+    const candidates = buildPlaybackCandidates(streamUrl);
+    let lastError = null;
 
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
+    for (const candidate of candidates) {
+      try {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+
+        const isHls = candidate.includes(".m3u8");
+        if (isHls && !audio.canPlayType("application/vnd.apple.mpegurl") && Hls.isSupported()) {
+          const hls = new Hls({ enableWorker: true });
+          hlsRef.current = hls;
+          await new Promise((resolve, reject) => {
+            const onManifestParsed = () => {
+              hls.off(Hls.Events.MANIFEST_PARSED, onManifestParsed);
+              hls.off(Hls.Events.ERROR, onError);
+              resolve();
+            };
+
+            const onError = (_, data) => {
+              if (!data.fatal) {
+                return;
+              }
+
+              hls.off(Hls.Events.MANIFEST_PARSED, onManifestParsed);
+              hls.off(Hls.Events.ERROR, onError);
+              reject(new Error(data.details || "HLS stream failed"));
+            };
+
+            hls.on(Hls.Events.MANIFEST_PARSED, onManifestParsed);
+            hls.on(Hls.Events.ERROR, onError);
+            hls.loadSource(candidate);
+            hls.attachMedia(audio);
+          });
+        } else {
+          audio.src = candidate;
+        }
+
+        await audio.play();
+        return candidate;
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    const isHls = streamUrl.includes(".m3u8");
-    if (isHls && !audio.canPlayType("application/vnd.apple.mpegurl") && Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true });
-      hlsRef.current = hls;
-      hls.loadSource(streamUrl);
-      hls.attachMedia(audio);
-      await new Promise((resolve, reject) => {
-        hls.on(Hls.Events.MANIFEST_PARSED, resolve);
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) {
-            reject(new Error("HLS stream failed"));
-          }
-        });
-      });
-    } else {
-      audio.src = streamUrl;
-    }
-
-    await audio.play();
+    throw (lastError instanceof Error ? lastError : new Error("HLS stream failed"));
   }
 
   async function onSelectStation(station) {
@@ -190,8 +226,8 @@ export default function App() {
 
     try {
       const streamUrl = await loadStreamUrl(station.id);
-      await attachStreamAndPlay(streamUrl);
-      setCurrentStreamUrl(streamUrl);
+      const activeStreamUrl = await attachStreamAndPlay(streamUrl);
+      setCurrentStreamUrl(activeStreamUrl);
     } catch (playError) {
       setStreamError(playError instanceof Error ? playError.message : "재생에 실패했습니다.");
       setIsPlaying(false);
