@@ -72,7 +72,6 @@ export default function App() {
   useEffect(() => {
     const audio = audioRef.current;
     audio.preload = "none";
-    audio.volume = volume;
 
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
