@@ -190,7 +190,8 @@ body {
 
 .thumb-wrap img {
   display: block;
-  width: 100%;
+  width: 20%;
+  margin: 0.5rem auto 0;
   aspect-ratio: 1 / 1;
   object-fit: cover;
 }
