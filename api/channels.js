@@ -10,8 +10,58 @@ const SOURCE_HEADERS = {
   "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
 };
 const EXCLUDED_IMAGE_URLS = new Set([
-  "https://sradio365.com/upload/7527-2022-12-15.png"
+  "https://sradio365.com/upload/7527-2022-12-15.png",
+  "https://sradio365.com/upload/gwanak.jpg",
+  "https://sradio365.com/upload/donga.jpg",
+  "https://sradio365.com/upload/4915-2022-05-30.png",
+  "https://sradio365.com/upload/7246-2022-10-18.png",
+  "https://sradio365.com/upload/1352-2022-10-18.png",
+  "https://sradio365.com/upload/2263-2022-10-18.png",
+  "https://sradio365.com/upload/3739-2022-10-18.png",
+  "https://sradio365.com/upload/7671-2022-12-16.png",
+  "https://sradio365.com/upload/9912-2022-12-16.png",
+  "https://sradio365.com/upload/6112-2022-12-16.png",
+  "https://sradio365.com/upload/1051-2022-12-16.png",
+  "https://sradio365.com/upload/3049-2022-12-16.png",
+  "https://sradio365.com/upload/8288-2022-12-16.png",
+  "https://sradio365.com/upload/0477-2022-12-16.png",
+  "https://sradio365.com/upload/1468-2022-12-16.jpg",
+  "https://sradio365.com/upload/0032-2022-12-16.png",
+  "https://sradio365.com/upload/kbs_world_24.jpg",
+  "https://sradio365.com/upload/2159-2024-01-06.jpg",
+  "https://sradio365.com/upload/sbs.jpg",
+  "https://sradio365.com/upload/6553-2022-12-16.png",
+  "https://sradio365.com/upload/7400-2022-12-16.png",
+  "https://sradio365.com/upload/3560-2022-12-16.png",
+  "https://sradio365.com/upload/7396-2022-12-16.png",
+  "https://sradio365.com/upload/7253-2022-12-16.png",
+  "https://sradio365.com/upload/9974-2022-12-16.png",
+  "https://sradio365.com/upload/2952-2022-12-16.png",
+  "https://sradio365.com/upload/8034-2022-12-16.png",
+  "https://sradio365.com/upload/6856-2022-12-21.png",
+  "https://sradio365.com/upload/0766-2022-12-16.png",
+  "https://sradio365.com/upload/9074-2024-02-29.png",
+  "https://sradio365.com/upload/wbs.jpg",
+  "https://sradio365.com/upload/4275-2023-11-07.jpg"
 ]);
+const EXCLUDED_STATION_IDS = new Set(["r1414", "r1420", "r1421", "r2366", "r2379", "r1386", "r1397"]);
+const EXCLUDED_STATION_KEYWORDS = [
+  "공동체라디오",
+  "community radio",
+  "관악fm",
+  "동아방송",
+  "donga",
+  "dong-a",
+  "라디오서울",
+  "라디오 서울",
+  "radio seoul",
+  "서울코리아",
+  "bbs",
+  "불교방송",
+  "cpbc",
+  "평화방송",
+  "가톨릭평화방송"
+];
 
 function parseAttributes(tag) {
   const attributes = {};
@@ -68,7 +118,12 @@ function parseStations(html) {
 }
 
 function isExcludedStation(station) {
-  return EXCLUDED_IMAGE_URLS.has(station.image);
+  if (EXCLUDED_IMAGE_URLS.has(station.image) || EXCLUDED_STATION_IDS.has(station.id)) {
+    return true;
+  }
+
+  const merged = `${station.station} ${station.title}`.toLowerCase();
+  return EXCLUDED_STATION_KEYWORDS.some((keyword) => merged.includes(keyword));
 }
 
 function isSupplementalStation(station) {
@@ -131,7 +186,9 @@ export default async function handler(_, response) {
     const seoulStations = parseStations(html)
       .filter((station) => !isCbsStation(station))
       .filter((station) => !isExcludedStation(station));
-    const supplementalStations = (await loadSupplementalStations()).filter((station) => !isCbsStation(station));
+    const supplementalStations = (await loadSupplementalStations())
+      .filter((station) => !isCbsStation(station))
+      .filter((station) => !isExcludedStation(station));
     const cbsStations = RADIO_KOREA_CBS_CHANNELS.map(({ streamUrl, ...station }) => station);
     const stations = dedupeStationsById([...seoulStations, ...supplementalStations, ...cbsStations]);
 

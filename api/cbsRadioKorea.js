@@ -34,24 +34,6 @@ export const RADIO_KOREA_CBS_CHANNELS = [
     source: "radio-korea",
     category: "CBS",
     streamUrl: "https://m-aac.cbs.co.kr/gwangju/_definst_/gwangju.stream/playlist.m3u8"
-  },
-  {
-    id: "rk-cbs-daejeon",
-    station: "CBS 대전",
-    title: "대전CBS (CBS Daejeon)",
-    image: "https://static.mytuner.mobi/media/tvos_radios/334/daejeoncbs-cbs-daejeon.a6cdc9c0.png",
-    source: "radio-korea",
-    category: "CBS",
-    streamUrl: "https://m-aac.cbs.co.kr/daejeon/_definst_/daejeon.stream/chunklist.m3u8"
-  },
-  {
-    id: "rk-cbs-jeonnam",
-    station: "CBS 전남",
-    title: "전남CBS (JN CBS HLCL-FM)",
-    image: "https://static.mytuner.mobi/media/tvos_radios/954/jeonnamcbs-jn-cbs-hlcl-fm.3cf5d0a9.png",
-    source: "radio-korea",
-    category: "CBS",
-    streamUrl: "https://m-aac.cbs.co.kr/jeonnam/_definst_/jeonnam.stream/chunklist.m3u8"
   }
 ];
 

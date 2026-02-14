@@ -301,7 +301,7 @@ export default function App() {
         <p className="chip">KOREAN LIVE RADIO</p>
         <h1>radionara</h1>
         <p className="hero-copy">
-          한국 채널을 기반으로 실시간 라디오를 재생합니다.
+          한국의 대표 방송 채널을 기반으로 실시간 라디오를 재생합니다.
           <br />
           즐겨찾기와 취침 타이머를 포함한 웹 전용 플레이어입니다.
         </p>
