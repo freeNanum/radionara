@@ -265,7 +265,7 @@ export default function App() {
         <p className="chip">SEOUL LIVE RADIO</p>
         <h1>라디오나라</h1>
         <p className="hero-copy">
-          sradio365 서울특별시 채널을 기반으로 실시간 라디오를 재생합니다.
+          한국 채널을 기반으로 실시간 라디오를 재생합니다.
           즐겨찾기와 취침 타이머를 포함한 웹 전용 플레이어입니다.
         </p>
 

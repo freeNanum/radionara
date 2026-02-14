@@ -1,4 +1,13 @@
 const SEOUL_URL = "https://sradio365.com/province/%EC%84%9C%EC%9A%B8%ED%8A%B9%EB%B3%84%EC%8B%9C";
+const SUPPLEMENTAL_SEARCH_URLS = [
+  "https://sradio365.com/?s=KBS",
+  "https://sradio365.com/?s=CBS",
+  "https://sradio365.com/?s=SBS"
+];
+const SOURCE_HEADERS = {
+  "user-agent": "Mozilla/5.0 (compatible; radionara-bot/1.0)",
+  "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
+};
 
 function parseAttributes(tag) {
   const attributes = {};
@@ -54,13 +63,54 @@ function parseStations(html) {
   return entries;
 }
 
+function isSupplementalStation(station) {
+  const mergedRaw = `${station.station} ${station.title}`;
+  const merged = mergedRaw.toLowerCase();
+  return (
+    merged.includes("cbs") ||
+    merged.includes("kbs") ||
+    merged.includes("sbs") ||
+    mergedRaw.includes("한국방송") ||
+    mergedRaw.includes("서울방송")
+  );
+}
+
+function dedupeStationsById(stations) {
+  const seen = new Set();
+  return stations.filter((station) => {
+    if (!station.id || seen.has(station.id)) {
+      return false;
+    }
+    seen.add(station.id);
+    return true;
+  });
+}
+
+async function loadSupplementalStations() {
+  const settled = await Promise.allSettled(
+    SUPPLEMENTAL_SEARCH_URLS.map(async (url) => {
+      const response = await fetch(url, {
+        headers: SOURCE_HEADERS
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const html = await response.text();
+      return parseStations(html);
+    })
+  );
+
+  return settled
+    .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+    .filter(isSupplementalStation);
+}
+
 export default async function handler(_, response) {
   try {
     const sourceResponse = await fetch(SEOUL_URL, {
-      headers: {
-        "user-agent": "Mozilla/5.0 (compatible; radionara-bot/1.0)",
-        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
-      }
+      headers: SOURCE_HEADERS
     });
 
     if (!sourceResponse.ok) {
@@ -71,7 +121,9 @@ export default async function handler(_, response) {
     }
 
     const html = await sourceResponse.text();
-    const stations = parseStations(html);
+    const seoulStations = parseStations(html);
+    const supplementalStations = await loadSupplementalStations();
+    const stations = dedupeStationsById([...seoulStations, ...supplementalStations]);
 
     response.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=86400");
     response.status(200).json({
