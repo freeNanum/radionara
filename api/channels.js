@@ -1,13 +1,17 @@
+import { RADIO_KOREA_CBS_CHANNELS } from "./cbsRadioKorea.js";
+
 const SEOUL_URL = "https://sradio365.com/province/%EC%84%9C%EC%9A%B8%ED%8A%B9%EB%B3%84%EC%8B%9C";
 const SUPPLEMENTAL_SEARCH_URLS = [
   "https://sradio365.com/?s=KBS",
-  "https://sradio365.com/?s=CBS",
   "https://sradio365.com/?s=SBS"
 ];
 const SOURCE_HEADERS = {
   "user-agent": "Mozilla/5.0 (compatible; radionara-bot/1.0)",
   "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
 };
+const EXCLUDED_IMAGE_URLS = new Set([
+  "https://sradio365.com/upload/7527-2022-12-15.png"
+]);
 
 function parseAttributes(tag) {
   const attributes = {};
@@ -63,16 +67,19 @@ function parseStations(html) {
   return entries;
 }
 
+function isExcludedStation(station) {
+  return EXCLUDED_IMAGE_URLS.has(station.image);
+}
+
 function isSupplementalStation(station) {
   const mergedRaw = `${station.station} ${station.title}`;
   const merged = mergedRaw.toLowerCase();
-  return (
-    merged.includes("cbs") ||
-    merged.includes("kbs") ||
-    merged.includes("sbs") ||
-    mergedRaw.includes("한국방송") ||
-    mergedRaw.includes("서울방송")
-  );
+  return merged.includes("kbs") || merged.includes("sbs") || mergedRaw.includes("한국방송") || mergedRaw.includes("서울방송");
+}
+
+function isCbsStation(station) {
+  const merged = `${station.station} ${station.title}`.toLowerCase();
+  return merged.includes("cbs");
 }
 
 function dedupeStationsById(stations) {
@@ -121,9 +128,12 @@ export default async function handler(_, response) {
     }
 
     const html = await sourceResponse.text();
-    const seoulStations = parseStations(html);
-    const supplementalStations = await loadSupplementalStations();
-    const stations = dedupeStationsById([...seoulStations, ...supplementalStations]);
+    const seoulStations = parseStations(html)
+      .filter((station) => !isCbsStation(station))
+      .filter((station) => !isExcludedStation(station));
+    const supplementalStations = (await loadSupplementalStations()).filter((station) => !isCbsStation(station));
+    const cbsStations = RADIO_KOREA_CBS_CHANNELS.map(({ streamUrl, ...station }) => station);
+    const stations = dedupeStationsById([...seoulStations, ...supplementalStations, ...cbsStations]);
 
     response.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=86400");
     response.status(200).json({

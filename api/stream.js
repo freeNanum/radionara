@@ -1,9 +1,41 @@
+import { getRadioKoreaCbsStreamById } from "./cbsRadioKorea.js";
+
 const STREAM_API = "https://sradio365.com/ajax/radio.php";
+const CBS_HOST_PATTERN = /(^|\.)cbs\.co\.kr$/i;
+
+function toClientStreamUrl(streamUrl) {
+  try {
+    const parsed = new URL(streamUrl);
+    if (CBS_HOST_PATTERN.test(parsed.hostname)) {
+      return `/api/hls?url=${encodeURIComponent(streamUrl)}`;
+    }
+  } catch {
+    return streamUrl;
+  }
+
+  return streamUrl;
+}
 
 export default async function handler(request, response) {
   const radio = request.query?.radio;
 
-  if (!radio || typeof radio !== "string" || !/^r\d+$/.test(radio)) {
+  if (!radio || typeof radio !== "string") {
+    response.status(400).json({
+      error: "Invalid radio id"
+    });
+    return;
+  }
+
+  const radioKoreaCbsStream = getRadioKoreaCbsStreamById(radio);
+  if (radioKoreaCbsStream) {
+    response.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=3600");
+    response.status(200).json({
+      streamUrl: toClientStreamUrl(radioKoreaCbsStream)
+    });
+    return;
+  }
+
+  if (!/^r\d+$/.test(radio)) {
     response.status(400).json({
       error: "Invalid radio id"
     });
@@ -37,8 +69,10 @@ export default async function handler(request, response) {
       return;
     }
 
+    const clientStreamUrl = toClientStreamUrl(streamUrl);
+
     response.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=3600");
-    response.status(200).json({ streamUrl });
+    response.status(200).json({ streamUrl: clientStreamUrl });
   } catch {
     response.status(500).json({
       error: "Failed to resolve stream"
